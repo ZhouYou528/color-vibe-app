@@ -108,13 +108,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         picture: payload.picture,
       };
 
-      console.log("User signed in:", userData); // Debug log
+      console.log("User signed in:", userData);
+      
+      // Update state immediately - this will trigger re-render and hide button
       setUser(userData);
       localStorage.setItem("auth_user", JSON.stringify(userData));
       
-      // Disable auto sign-in prompt after successful sign-in
-      if (typeof window !== "undefined" && window.google) {
-        window.google.accounts.id.disableAutoSelect();
+      // Immediately clear Google sign-in buttons from DOM
+      if (typeof window !== "undefined") {
+        // Clear button containers immediately
+        const clearButtons = () => {
+          const containers = document.querySelectorAll('#google-signin-button');
+          containers.forEach(container => {
+            container.innerHTML = "";
+          });
+          
+          // Remove Google-created elements
+          document.querySelectorAll('[id^="gsi"], iframe[src*="accounts.google.com"]').forEach(el => {
+            if (el.parentElement) {
+              el.remove();
+            }
+          });
+        };
+        
+        clearButtons();
+        // Also clear after a brief delay to catch any async renders
+        setTimeout(clearButtons, 50);
+        
+        // Disable auto sign-in prompt
+        if (window.google) {
+          window.google.accounts.id.disableAutoSelect();
+        }
       }
     } catch (error) {
       console.error("Failed to decode credential", error);
@@ -123,7 +147,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = () => {
     // The login is handled by the Google Sign-In button rendered in AppHeader
-    // This function can be used to trigger the sign-in flow programmatically if needed
     if (typeof window === "undefined" || !window.google) {
       console.error("Google Identity Services not loaded");
       return;
@@ -132,7 +155,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Trigger the One Tap prompt
     window.google.accounts.id.prompt((notification: any) => {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // If One Tap is not displayed, the button in AppHeader will handle it
         console.log("One Tap not available, using button");
       }
     });
