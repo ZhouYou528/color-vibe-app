@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePhotoContext } from "@/contexts/PhotoContext";
+import { useAuth } from "@/contexts/AuthContext";
 import SourceOptionCard from "@/components/SourceOptionCard";
 import AppHeader from "@/components/AppHeader";
 import { extractPalette, combinePalettes, ColorInfo } from "@/lib/colorAnalysis";
@@ -19,12 +20,15 @@ function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { selectedImages, setSelectedImages } = usePhotoContext();
+  const { isAuthenticated } = useAuth();
   const [images, setImages] = useState<ImageFile[]>([]);
   const [combinedPalette, setCombinedPalette] = useState<ColorInfo[]>([]);
   const [insights, setInsights] = useState<InsightData | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasTriggeredAnalysis, setHasTriggeredAnalysis] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [cardDetails, setCardDetails] = useState<{
     title: string;
     lightTags: string[];
@@ -156,7 +160,42 @@ function HomeContent() {
     setHasTriggeredAnalysis(false);
     setCardDetails(null);
     setSelectedImages([]);
+    setSaved(false);
     sessionStorage.removeItem("cardDetails");
+    router.push("/");
+  };
+
+  const handleSaveCard = async () => {
+    if (!isAuthenticated || !cardDetails || !combinedPalette.length || !insights) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const savedCard = {
+        id: `card-${Date.now()}-${Math.random()}`,
+        title: cardDetails.title,
+        createdAt: new Date().toISOString(),
+        palette: combinedPalette,
+        insights: insights,
+        cardDetails: cardDetails,
+        imagePreviews: images.map((img) => img.preview),
+      };
+
+      // Load existing cards
+      const existingCards = localStorage.getItem("saved_cards");
+      const cards = existingCards ? JSON.parse(existingCards) : [];
+      cards.push(savedCard);
+
+      // Save to localStorage
+      localStorage.setItem("saved_cards", JSON.stringify(cards));
+      setSaved(true);
+    } catch (error) {
+      console.error("Failed to save card", error);
+      setError("Failed to save card. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Determine current view state
@@ -165,9 +204,9 @@ function HomeContent() {
 
   return (
     <main className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
-        <AppHeader />
+      {/* Header */}
+      <AppHeader />
+      <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 md:pb-12 ${hasResults ? 'pt-16' : 'pt-28'}`}>
 
         {/* Landing View - Card Selection */}
         {isLanding && (
@@ -250,7 +289,7 @@ function HomeContent() {
         {hasResults && insights && (
           <div className="w-full">
             {/* Header with Back Button */}
-            <div className="sticky top-0 bg-white z-10 pb-4 mb-6 border-b border-gray-200 -mx-4 px-4">
+            <div className="sticky top-16 bg-white z-10 py-4 mb-4 border-b border-gray-200 -mx-4 px-4">
               <div className="flex items-center gap-4">
                 <button
                   onClick={handleReset}
@@ -271,7 +310,7 @@ function HomeContent() {
                     />
                   </svg>
                 </button>
-                <h1 className="text-lg font-semibold text-gray-900">
+                <h1 className="text-lg font-semibold text-gray-900 flex items-center">
                   Direction Card
                 </h1>
               </div>
@@ -323,6 +362,63 @@ function HomeContent() {
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Save Button (only if logged in) */}
+            {isAuthenticated && !saved && (
+              <div className="mb-6 flex justify-end">
+                <button
+                  onClick={handleSaveCard}
+                  disabled={isSaving}
+                  className="px-6 py-3 bg-amber-700 text-white rounded-lg font-medium hover:bg-amber-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      <span>Save to Library</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Saved Indicator */}
+            {saved && (
+              <div className="mb-6 flex justify-end">
+                <div className="px-6 py-3 bg-green-50 text-green-700 rounded-lg font-medium flex items-center gap-2 border border-green-200">
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <span>Saved to Library</span>
+                </div>
               </div>
             )}
 
@@ -473,8 +569,20 @@ export default function Home() {
   return (
     <Suspense fallback={
       <main className="min-h-screen bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <AppHeader />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-12">
+          {/* Simple header without auth */}
+          <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-16">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-8 h-8 border-2 border-gray-900 rounded-sm flex items-center justify-center">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  </div>
+                  <h1 className="text-xl font-semibold text-gray-900">Color Vibe</h1>
+                </div>
+              </div>
+            </div>
+          </header>
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>

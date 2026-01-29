@@ -36,10 +36,10 @@ export default function SourceOptionCard({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-3 mb-1">
-          <h3 className="text-lg font-semibold text-gray-900" style={{ fontFamily: 'var(--font-playfair), serif' }}>{title}</h3>
+        <div className="flex items-center gap-3 mb-1 flex-nowrap">
+          <h3 className="text-lg font-semibold text-gray-900 whitespace-nowrap" style={{ fontFamily: 'var(--font-playfair), serif' }}>{title}</h3>
           {comingSoon && (
-            <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-yellow-700 text-white">
+            <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-yellow-700 text-white whitespace-nowrap flex-shrink-0">
               Coming Soon
             </span>
           )}

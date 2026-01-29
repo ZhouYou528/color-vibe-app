@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePhotoContext } from "@/contexts/PhotoContext";
+import AppHeader from "@/components/AppHeader";
 
 const MAX_IMAGES = 20;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -130,8 +131,10 @@ export default function SelectPhotosPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
+      {/* App Header */}
+      <AppHeader />
+      {/* Page Header with Back Button and Title */}
+      <header className="sticky top-16 z-10 bg-white border-b border-gray-200 px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Back Button */}
           <Link
@@ -185,8 +188,8 @@ export default function SelectPhotosPage() {
         className="hidden"
       />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      {/* Main Content - Padding accounts for sticky header height (~64px) to prevent overlap */}
+      <main className="max-w-7xl mx-auto px-4 pt-20 pb-24 md:pb-6">
         {/* Error Message */}
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
