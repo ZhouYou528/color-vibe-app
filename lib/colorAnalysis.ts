@@ -79,6 +79,98 @@ export function rgbToHsl(r: number, g: number, b: number): HSL {
 }
 
 /**
+ * Debug function to analyze color extraction issues
+ * Returns detailed information about the color extraction process
+ */
+export async function debugColorExtraction(
+  imageUrl: string,
+  colorCount: number = 6
+): Promise<{
+  totalPixels: number;
+  uniqueColors: number;
+  topColors: Array<{ hex: string; count: number; percentage: number }>;
+  extractedColors: ColorInfo[];
+  imageSize: { width: number; height: number };
+  processedSize: { width: number; height: number };
+}> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Could not get canvas context"));
+        return;
+      }
+
+      const originalSize = { width: img.width, height: img.height };
+      
+      // Same downscaling logic as main function
+      const maxSize = 300;
+      const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      
+      const processedSize = { width: canvas.width, height: canvas.height };
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imageData.data;
+
+      const colorMap = new Map<string, { rgb: RGB; count: number }>();
+      let totalPixels = 0;
+
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const a = pixels[i + 3];
+
+        if (a < 128) continue;
+        totalPixels++;
+
+        const qr = Math.round(r / 6) * 6;
+        const qg = Math.round(g / 6) * 6;
+        const qb = Math.round(b / 6) * 6;
+        const key = `${qr},${qg},${qb}`;
+
+        if (colorMap.has(key)) {
+          colorMap.get(key)!.count++;
+        } else {
+          colorMap.set(key, { rgb: { r: qr, g: qg, b: qb }, count: 1 });
+        }
+      }
+
+      const sortedColors = Array.from(colorMap.entries())
+        .sort((a, b) => b[1].count - a[1].count);
+
+      const topColors = sortedColors.slice(0, 20).map(([, { rgb, count }]) => ({
+        hex: rgbToHex(rgb.r, rgb.g, rgb.b),
+        count,
+        percentage: Math.round((count / totalPixels) * 100 * 100) / 100
+      }));
+
+      // Run the actual extraction
+      extractPalette(imageUrl, colorCount).then(extractedColors => {
+        resolve({
+          totalPixels,
+          uniqueColors: colorMap.size,
+          topColors,
+          extractedColors,
+          imageSize: originalSize,
+          processedSize
+        });
+      }).catch(reject);
+    };
+
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = imageUrl;
+  });
+}
+
+/**
  * Get a human-readable color label
  */
 function getColorLabel(hsl: HSL): string {
@@ -114,119 +206,81 @@ function getColorLabel(hsl: HSL): string {
 }
 
 /**
- * Extract dominant colors from an image using a simple quantization approach
+ * Extract dominant colors from an image using Color Thief library
+ * Color Thief uses median cut algorithm for more accurate color extraction
  */
 export async function extractPalette(
   imageUrl: string,
   colorCount: number = 6
 ): Promise<ColorInfo[]> {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
 
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Could not get canvas context"));
-        return;
-      }
+    img.onload = async () => {
+      try {
+        // Wait a tick to ensure image is fully loaded and dimensions are set
+        await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Downscale for performance
-      const maxSize = 200;
-      const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const pixels = imageData.data;
-
-      // Collect all RGB values
-      const colorMap = new Map<string, { rgb: RGB; count: number }>();
-
-      for (let i = 0; i < pixels.length; i += 4) {
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-        const a = pixels[i + 3];
-
-        // Skip transparent pixels
-        if (a < 128) continue;
-
-        // Quantize colors to reduce noise
-        const qr = Math.round(r / 10) * 10;
-        const qg = Math.round(g / 10) * 10;
-        const qb = Math.round(b / 10) * 10;
-        const key = `${qr},${qg},${qb}`;
-
-        if (colorMap.has(key)) {
-          colorMap.get(key)!.count++;
-        } else {
-          colorMap.set(key, { rgb: { r: qr, g: qg, b: qb }, count: 1 });
+        // Color Thief's CanvasImage class uses naturalWidth/naturalHeight internally
+        // These must be valid integers > 0
+        // IMPORTANT: Color Thief expects an IMAGE element, not a canvas
+        // It will create its own canvas internally using naturalWidth/naturalHeight
+        const imgWidth = img.naturalWidth;
+        const imgHeight = img.naturalHeight;
+        
+        // Validate natural dimensions (Color Thief requires these)
+        if (!imgWidth || !imgHeight || imgWidth <= 0 || imgHeight <= 0) {
+          // Try fallback to width/height
+          const fallbackWidth = img.width;
+          const fallbackHeight = img.height;
+          if (!fallbackWidth || !fallbackHeight || fallbackWidth <= 0 || fallbackHeight <= 0) {
+            reject(new Error(`Invalid image dimensions: naturalWidth=${imgWidth}, naturalHeight=${imgHeight}, width=${fallbackWidth}, height=${fallbackHeight}`));
+            return;
+          }
+          // If natural dimensions are missing, the image may not be fully loaded
+          reject(new Error("Image natural dimensions not available - image may not be fully loaded"));
+          return;
         }
-      }
 
-      // Sort by frequency and get top colors
-      const sortedColors = Array.from(colorMap.entries())
-        .sort((a, b) => b[1].count - a[1].count)
-        .slice(0, colorCount * 3); // Get more candidates for better results (increased from 2x to 3x)
+        // Ensure dimensions are integers (Color Thief's CanvasImage uses them directly)
+        if (!Number.isInteger(imgWidth) || !Number.isInteger(imgHeight)) {
+          reject(new Error(`Image dimensions must be integers: ${imgWidth}x${imgHeight}`));
+          return;
+        }
 
-      // Further refine by removing very similar colors
-      const refinedColors: ColorInfo[] = [];
-      for (const [, { rgb }] of sortedColors) {
-        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-        const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+        // Dynamically import Color Thief (browser-only library)
+        const ColorThief = (await import("colorthief")).default;
+        const colorThief = new ColorThief();
 
-        // Skip colors that are too similar to already selected ones
-        const isSimilar = refinedColors.some((existing) => {
-          const hDiff = Math.abs(existing.hsl.h - hsl.h);
-          const sDiff = Math.abs(existing.hsl.s - hsl.s);
-          const lDiff = Math.abs(existing.hsl.l - hsl.l);
-          return (
-            (hDiff < 30 || hDiff > 330) && sDiff < 20 && lDiff < 20
-          );
-        });
+        // Color Thief works with image element directly
+        // It creates its own internal canvas using naturalWidth/naturalHeight
+        // The quality parameter controls sampling (1 = all pixels, higher = faster)
+        // For very large images, use quality > 1 to improve performance
+        const quality = imgWidth * imgHeight > 1000000 ? 5 : 1; // Use quality 5 for images > 1MP
+        
+        // Get color palette using Color Thief's median cut algorithm
+        // MUST pass image element (not canvas) - Color Thief needs naturalWidth/naturalHeight
+        const palette: number[][] = colorThief.getPalette(img, colorCount, quality);
 
-        if (!isSimilar) {
-          refinedColors.push({
+        // Convert Color Thief results to our ColorInfo format
+        const refinedColors: ColorInfo[] = palette.map(([r, g, b]) => {
+          const rgb: RGB = { r, g, b };
+          const hex = rgbToHex(r, g, b);
+          const hsl = rgbToHsl(r, g, b);
+
+          return {
             rgb,
             hex,
             hsl,
             label: getColorLabel(hsl),
-          });
+          };
+        });
 
-          if (refinedColors.length >= colorCount) break;
-        }
+        resolve(refinedColors);
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error("Failed to extract colors"));
       }
-
-      // If we don't have enough colors, add remaining ones even if similar
-      // This ensures we always return the requested number of colors
-      if (refinedColors.length < colorCount && sortedColors.length > refinedColors.length) {
-        for (const [, { rgb }] of sortedColors) {
-          if (refinedColors.length >= colorCount) break;
-          
-          const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-          const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-          
-          // Only add if not already in the list (exact match)
-          const alreadyExists = refinedColors.some(
-            (existing) => existing.hex === hex
-          );
-          
-          if (!alreadyExists) {
-            refinedColors.push({
-              rgb,
-              hex,
-              hsl,
-              label: getColorLabel(hsl),
-            });
-          }
-        }
-      }
-
-      resolve(refinedColors);
     };
 
     img.onerror = () => {
@@ -282,11 +336,10 @@ export function combinePalettes(
     .slice(0, 5)
     .map(([hue]) => hue);
 
-  // Cluster similar colors to get representative palette
+  // Improved color clustering for representative palette
   const representativeColors: ColorInfo[] = [];
-  const used = new Set<string>();
 
-  // Sort by frequency in original palettes
+  // Count frequency of each exact color across all images
   const colorFrequency = new Map<string, { color: ColorInfo; count: number }>();
   allColors.forEach((color) => {
     const key = color.hex;
@@ -301,28 +354,37 @@ export function combinePalettes(
     (a, b) => b.count - a.count
   );
 
-  // Determine minimum colors needed (at least 6, or all available if fewer)
+  // Adaptive color selection based on available colors
   const minColors = Math.min(6, allColors.length);
-  const maxColors = Math.min(8, allColors.length);
+  const maxColors = Math.min(10, allColors.length); // Increased max for better representation
   
-  // Adjust similarity thresholds based on available colors
-  // If we have few colors, be less strict to ensure we get enough
-  const hueThreshold = allColors.length <= 6 ? 20 : 30; // Stricter when we have more options
-  const saturationThreshold = allColors.length <= 6 ? 30 : 25;
-  const lightnessThreshold = allColors.length <= 6 ? 30 : 25;
+  // Dynamic similarity thresholds based on color diversity
+  const colorDiversity = colorFrequency.size / allColors.length;
+  const baseHueThreshold = colorDiversity > 0.3 ? 35 : 25; // More strict when diverse
+  const baseSatThreshold = colorDiversity > 0.3 ? 30 : 20;
+  const baseLightThreshold = colorDiversity > 0.3 ? 30 : 20;
 
   for (const { color } of sortedByFreq) {
     if (representativeColors.length >= maxColors) break;
 
-    // Check if similar color already exists
+    // Adaptive similarity check based on color characteristics
     const isSimilar = representativeColors.some((existing) => {
       const hDiff = Math.abs(existing.hsl.h - color.hsl.h);
       const sDiff = Math.abs(existing.hsl.s - color.hsl.s);
       const lDiff = Math.abs(existing.hsl.l - color.hsl.l);
+      
+      // Adjust thresholds based on the specific colors being compared
+      const hueThreshold = (color.hsl.s < 15 || existing.hsl.s < 15) ? 
+        baseHueThreshold + 15 : baseHueThreshold; // More lenient for grays
+      const satThreshold = (color.hsl.l > 85 || color.hsl.l < 15) ? 
+        baseSatThreshold + 10 : baseSatThreshold; // More lenient for very light/dark
+      const lightThreshold = (color.hsl.s < 15) ? 
+        baseLightThreshold + 10 : baseLightThreshold; // More lenient for muted colors
+      
       return (
         (hDiff < hueThreshold || hDiff > (360 - hueThreshold)) && 
-        sDiff < saturationThreshold && 
-        lDiff < lightnessThreshold
+        sDiff < satThreshold && 
+        lDiff < lightThreshold
       );
     });
 
@@ -331,8 +393,7 @@ export function combinePalettes(
     }
   }
 
-  // If we still don't have enough colors, add remaining colors even if similar
-  // This ensures we always have at least minColors
+  // Enhanced fallback to ensure minimum colors
   if (representativeColors.length < minColors) {
     for (const { color } of sortedByFreq) {
       if (representativeColors.length >= minColors) break;
