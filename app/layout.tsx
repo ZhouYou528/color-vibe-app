@@ -3,12 +3,18 @@ import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { PhotoProvider } from "@/contexts/PhotoContext";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: "swap",
+  fallback: ["system-ui", "arial"],
+});
+
 const playfair = Playfair_Display({ 
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800", "900"],
   variable: "--font-playfair",
   display: "swap",
+  fallback: ["Georgia", "serif"],
 });
 
 export const metadata: Metadata = {
