@@ -171,7 +171,7 @@ export async function extractPalette(
       // Sort by frequency and get top colors
       const sortedColors = Array.from(colorMap.entries())
         .sort((a, b) => b[1].count - a[1].count)
-        .slice(0, colorCount * 2); // Get more candidates for better results
+        .slice(0, colorCount * 3); // Get more candidates for better results (increased from 2x to 3x)
 
       // Further refine by removing very similar colors
       const refinedColors: ColorInfo[] = [];
@@ -198,6 +198,31 @@ export async function extractPalette(
           });
 
           if (refinedColors.length >= colorCount) break;
+        }
+      }
+
+      // If we don't have enough colors, add remaining ones even if similar
+      // This ensures we always return the requested number of colors
+      if (refinedColors.length < colorCount && sortedColors.length > refinedColors.length) {
+        for (const [, { rgb }] of sortedColors) {
+          if (refinedColors.length >= colorCount) break;
+          
+          const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+          const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+          
+          // Only add if not already in the list (exact match)
+          const alreadyExists = refinedColors.some(
+            (existing) => existing.hex === hex
+          );
+          
+          if (!alreadyExists) {
+            refinedColors.push({
+              rgb,
+              hex,
+              hsl,
+              label: getColorLabel(hsl),
+            });
+          }
         }
       }
 
@@ -276,8 +301,18 @@ export function combinePalettes(
     (a, b) => b.count - a.count
   );
 
+  // Determine minimum colors needed (at least 6, or all available if fewer)
+  const minColors = Math.min(6, allColors.length);
+  const maxColors = Math.min(8, allColors.length);
+  
+  // Adjust similarity thresholds based on available colors
+  // If we have few colors, be less strict to ensure we get enough
+  const hueThreshold = allColors.length <= 6 ? 20 : 30; // Stricter when we have more options
+  const saturationThreshold = allColors.length <= 6 ? 30 : 25;
+  const lightnessThreshold = allColors.length <= 6 ? 30 : 25;
+
   for (const { color } of sortedByFreq) {
-    if (representativeColors.length >= 8) break;
+    if (representativeColors.length >= maxColors) break;
 
     // Check if similar color already exists
     const isSimilar = representativeColors.some((existing) => {
@@ -285,12 +320,31 @@ export function combinePalettes(
       const sDiff = Math.abs(existing.hsl.s - color.hsl.s);
       const lDiff = Math.abs(existing.hsl.l - color.hsl.l);
       return (
-        (hDiff < 30 || hDiff > 330) && sDiff < 25 && lDiff < 25
+        (hDiff < hueThreshold || hDiff > (360 - hueThreshold)) && 
+        sDiff < saturationThreshold && 
+        lDiff < lightnessThreshold
       );
     });
 
     if (!isSimilar) {
       representativeColors.push(color);
+    }
+  }
+
+  // If we still don't have enough colors, add remaining colors even if similar
+  // This ensures we always have at least minColors
+  if (representativeColors.length < minColors) {
+    for (const { color } of sortedByFreq) {
+      if (representativeColors.length >= minColors) break;
+      
+      // Only add if not already in the list (exact match)
+      const alreadyExists = representativeColors.some(
+        (existing) => existing.hex === color.hex
+      );
+      
+      if (!alreadyExists) {
+        representativeColors.push(color);
+      }
     }
   }
 

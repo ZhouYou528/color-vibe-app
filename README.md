@@ -80,7 +80,16 @@ This project is configured for deployment on Vercel with automatic CI/CD.
 2. Import your repository in [Vercel](https://vercel.com)
 3. Vercel will automatically detect Next.js and deploy
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
+See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed deployment instructions.
+
+### Documentation
+
+All deployment and setup guides are available in the [`docs/`](./docs/) folder:
+- [Deployment Guide](./docs/DEPLOYMENT.md) - Complete deployment instructions
+- [Quick Start](./docs/QUICK_START.md) - Quick reference for pushing to GitHub
+- [Vercel Deployment](./docs/VERCEL_DEPLOY.md) - Step-by-step Vercel setup
+- [Git Setup](./docs/GIT_SETUP.md) - Git repository configuration
+- [Troubleshooting](./docs/DEPLOYMENT_FIX.md) - Common deployment issues and fixes
 
 ### CI/CD Features
 
