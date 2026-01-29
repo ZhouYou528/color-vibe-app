@@ -206,7 +206,7 @@ function HomeContent() {
     <main className="min-h-screen bg-white">
       {/* Header */}
       <AppHeader />
-      <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 md:pb-12 ${hasResults ? 'pt-16' : 'pt-28'}`}>
+      <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 ${hasResults ? 'pt-16' : 'pt-28'}`}>
 
         {/* Landing View - Card Selection */}
         {isLanding && (

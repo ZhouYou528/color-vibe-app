@@ -189,7 +189,7 @@ export default function SelectPhotosPage() {
       />
 
       {/* Main Content - Padding accounts for sticky header height (~64px) to prevent overlap */}
-      <main className="max-w-7xl mx-auto px-4 pt-20 pb-24 md:pb-6">
+      <main className="max-w-7xl mx-auto px-4 pt-20 pb-24">
         {/* Error Message */}
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">

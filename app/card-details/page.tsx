@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import TagPill from "../../components/TagPill";
-import AppHeader from "@/components/AppHeader";
+import AppHeader from "../../components/AppHeader";
 
 const LIGHT_TAGS = [
   "side",
@@ -127,7 +127,7 @@ export default function CardDetailsPage() {
       </header>
 
       {/* Main Content - Padding accounts for sticky header height (~64px) to prevent overlap */}
-      <main className="max-w-4xl mx-auto px-4 pt-20 pb-24 md:pb-8">
+      <main className="max-w-4xl mx-auto px-4 pt-20 pb-24">
         <div className="space-y-8">
           {/* Title Field */}
           <div>

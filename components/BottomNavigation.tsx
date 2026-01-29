@@ -17,7 +17,7 @@ export default function BottomNavigation() {
   const isLibrary = pathname === "/library" || pathname.startsWith("/card/");
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200">
       <div className="flex items-center justify-around h-16">
         {/* Create Tab */}
         <button
