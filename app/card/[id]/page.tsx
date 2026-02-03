@@ -112,35 +112,29 @@ export default function CardDetailPage() {
   return (
     <main className="min-h-screen bg-white">
       <AppHeader />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
-        {/* Header with Back Button */}
-        <div className="sticky top-16 bg-white z-10 py-4 mb-4 border-b border-gray-200 -mx-4 px-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/library"
-              className="flex items-center justify-center w-10 h-10 -ml-2 text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-              aria-label="Back"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </Link>
-            <h1 className="text-lg font-semibold text-gray-900 flex items-center">
-              Direction Card
-            </h1>
-          </div>
-        </div>
+      
+      {/* Floating Back Button */}
+      <Link
+        href="/library"
+        className="fixed left-4 top-20 z-40 flex items-center justify-center w-12 h-12 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+        aria-label="Back"
+      >
+        <svg
+          className="w-6 h-6 text-gray-900"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </Link>
 
+      <div className="max-w-4xl mx-auto px-20 pt-28 pb-24">
         {/* Card Title */}
         <h2 className="text-3xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>
           {title}
@@ -190,7 +184,7 @@ export default function CardDetailPage() {
 
         {/* Horizontally Scrollable Image Previews */}
         {imageUrls && imageUrls.length > 0 && (
-          <div className="mb-8 -mx-4 px-4">
+          <div className="mb-8">
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {imageUrls.map((url, idx) => (
                 <div

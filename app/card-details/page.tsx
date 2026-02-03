@@ -81,53 +81,56 @@ export default function CardDetailsPage() {
     <div className="min-h-screen bg-white">
       {/* App Header */}
       <AppHeader />
-      {/* Page Header with Back Button and Title */}
-      <header className="sticky top-16 z-10 bg-white border-b border-gray-200 px-4 py-3 mb-0">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          {/* Back Button */}
-          <Link
-            href="/select-photos"
-            className="flex items-center justify-center w-10 h-10 -ml-2 text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-            aria-label="Back"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </Link>
+      
+      {/* Floating Back Button */}
+      <Link
+        href="/select-photos"
+        className="fixed left-4 top-20 z-40 flex items-center justify-center w-12 h-12 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+        aria-label="Back"
+      >
+        <svg
+          className="w-6 h-6 text-gray-900"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </Link>
 
-          {/* Page Title */}
-          <h1 className="text-lg font-semibold text-gray-900">Card Details</h1>
+      {/* Floating Generate Button */}
+      <button
+        onClick={handleGenerate}
+        disabled={!title.trim()}
+        className={`fixed right-4 top-20 z-40 flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all ${
+          !title.trim()
+            ? "bg-gray-300 cursor-not-allowed"
+            : "bg-amber-700 hover:bg-amber-800"
+        }`}
+        aria-label="Generate"
+      >
+        <svg
+          className="w-6 h-6 text-white"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+      </button>
 
-          {/* Generate Button */}
-          <button
-            onClick={handleGenerate}
-            disabled={!title.trim()}
-            className={`
-              px-4 py-2 text-sm font-medium rounded-lg transition-colors
-              ${
-                !title.trim()
-                  ? "text-gray-400 cursor-not-allowed bg-gray-50"
-                  : "text-gray-900 hover:bg-gray-100"
-              }
-            `}
-          >
-            Generate
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content - Padding accounts for sticky header height (~64px) to prevent overlap */}
-      <main className="max-w-4xl mx-auto px-4 pt-20 pb-24">
+      {/* Main Content - Extra padding on sides to avoid floating buttons */}
+      <main className="max-w-4xl mx-auto px-4 pt-28 pb-24 pl-20 pr-20">
         <div className="space-y-8">
           {/* Title Field */}
           <div>

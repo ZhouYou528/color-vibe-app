@@ -133,50 +133,53 @@ export default function SelectPhotosPage() {
     <div className="min-h-screen bg-white">
       {/* App Header */}
       <AppHeader />
-      {/* Page Header with Back Button and Title */}
-      <header className="sticky top-16 z-10 bg-white border-b border-gray-200 px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Back Button */}
-          <Link
-            href="/"
-            className="flex items-center justify-center w-10 h-10 -ml-2 text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-            aria-label="Back"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </Link>
+      
+      {/* Floating Back Button */}
+      <Link
+        href="/"
+        className="fixed left-4 top-20 z-40 flex items-center justify-center w-12 h-12 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+        aria-label="Back"
+      >
+        <svg
+          className="w-6 h-6 text-gray-900"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </Link>
 
-          {/* Page Title */}
-          <h1 className="text-lg font-semibold text-gray-900">Select Photos</h1>
-
-          {/* Next Button */}
-          <button
-            onClick={handleNext}
-            disabled={selectedCount === 0}
-            className={`
-              px-4 py-2 text-sm font-medium rounded-lg transition-colors
-              ${
-                selectedCount === 0
-                  ? "text-gray-400 cursor-not-allowed"
-                  : "text-gray-900 hover:bg-gray-100"
-              }
-            `}
-          >
-            Next
-          </button>
-        </div>
-      </header>
+      {/* Floating Next Button */}
+      <button
+        onClick={handleNext}
+        disabled={selectedCount === 0}
+        className={`fixed right-4 top-20 z-40 flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all ${
+          selectedCount === 0
+            ? "bg-gray-300 cursor-not-allowed"
+            : "bg-amber-700 hover:bg-amber-800"
+        }`}
+        aria-label="Next"
+      >
+        <svg
+          className="w-6 h-6 text-white"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </button>
 
       {/* Hidden File Input */}
       <input
@@ -188,8 +191,8 @@ export default function SelectPhotosPage() {
         className="hidden"
       />
 
-      {/* Main Content - Padding accounts for sticky header height (~64px) to prevent overlap */}
-      <main className="max-w-7xl mx-auto px-4 pt-20 pb-24">
+      {/* Main Content - Extra padding on sides to avoid floating buttons */}
+      <main className="max-w-7xl mx-auto px-4 pt-28 pb-24 pl-20 pr-20">
         {/* Error Message */}
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">

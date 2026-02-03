@@ -330,34 +330,27 @@ function HomeContent() {
 
         {/* Results Section */}
         {hasResults && insights && (
-          <div className="w-full">
-            {/* Header with Back Button */}
-            <div className="sticky top-16 bg-white z-10 py-4 mb-4 border-b border-gray-200 -mx-4 px-4">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleReset}
-                  className="flex items-center justify-center w-10 h-10 -ml-2 text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-                  aria-label="Back"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 19l-7-7 7-7"
-                    />
-                  </svg>
-                </button>
-                <h1 className="text-lg font-semibold text-gray-900 flex items-center">
-                  Direction Card
-                </h1>
-              </div>
-            </div>
+          <div className="w-full pl-20">
+            {/* Floating Back Button */}
+            <button
+              onClick={handleReset}
+              className="fixed left-4 top-20 z-40 flex items-center justify-center w-12 h-12 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+              aria-label="Back"
+            >
+              <svg
+                className="w-6 h-6 text-gray-900"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
 
             {/* Card Title */}
             {cardDetails && (
@@ -411,7 +404,7 @@ function HomeContent() {
 
             {/* Horizontally Scrollable Image Previews */}
             {images.length > 0 && (
-              <div className="mb-8 -mx-4 px-4">
+              <div className="mb-8">
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                   {images.map((img) => (
                     <div
