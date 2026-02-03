@@ -116,11 +116,11 @@ export default function CardDetailPage() {
       {/* Floating Back Button */}
       <Link
         href="/library"
-        className="fixed left-4 top-20 z-40 flex items-center justify-center w-12 h-12 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+        className="fixed left-3 top-20 z-40 flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 sm:left-4 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
         aria-label="Back"
       >
         <svg
-          className="w-6 h-6 text-gray-900"
+          className="w-5 h-5 sm:w-6 sm:h-6 text-gray-900"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -134,7 +134,7 @@ export default function CardDetailPage() {
         </svg>
       </Link>
 
-      <div className="max-w-4xl mx-auto px-20 pt-28 pb-24">
+      <div className="max-w-4xl mx-auto px-10 sm:px-14 pt-28 pb-24">
         {/* Card Title */}
         <h2 className="text-3xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>
           {title}

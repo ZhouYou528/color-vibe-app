@@ -249,7 +249,7 @@ function HomeContent() {
     <main className="min-h-screen bg-white">
       {/* Header */}
       <AppHeader />
-      <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 ${isAuthenticated && !saved ? 'pb-32' : 'pb-24'} ${hasResults ? 'pt-16' : 'pt-28'}`}>
+      <div className={`max-w-4xl mx-auto ${hasResults ? '' : 'px-4 sm:px-6 lg:px-8'} ${isAuthenticated && !saved ? 'pb-32' : 'pb-24'} ${hasResults ? '' : 'pt-28'}`}>
 
         {/* Landing View - Card Selection */}
         {isLanding && (
@@ -328,17 +328,17 @@ function HomeContent() {
           </div>
         )}
 
-        {/* Results Section */}
+        {/* Results Section - same layout as card detail page (/card/[id]) */}
         {hasResults && insights && (
-          <div className="w-full pl-20">
+          <div className="w-full px-10 sm:px-14 pt-28 pb-24">
             {/* Floating Back Button */}
             <button
               onClick={handleReset}
-              className="fixed left-4 top-20 z-40 flex items-center justify-center w-12 h-12 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+              className="fixed left-3 top-20 z-40 flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 sm:left-4 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
               aria-label="Back"
             >
               <svg
-                className="w-6 h-6 text-gray-900"
+                className="w-5 h-5 sm:w-6 sm:h-6 text-gray-900"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -590,17 +590,17 @@ function HomeContent() {
             <button
               onClick={handleSaveCard}
               disabled={isSaving}
-              className="px-6 py-3 bg-amber-700 text-white rounded-lg font-medium hover:bg-amber-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
+              className="px-4 py-2 text-sm sm:px-6 sm:py-3 sm:text-base bg-amber-700 text-white rounded-lg font-medium hover:bg-amber-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
             >
               {isSaving ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-3.5 w-3.5 sm:h-4 sm:w-4 border-b-2 border-white"></div>
                   <span>Saving...</span>
                 </>
               ) : (
                 <>
                   <svg
-                    className="w-5 h-5"
+                    className="w-4 h-4 sm:w-5 sm:h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

@@ -137,11 +137,11 @@ export default function SelectPhotosPage() {
       {/* Floating Back Button */}
       <Link
         href="/"
-        className="fixed left-4 top-20 z-40 flex items-center justify-center w-12 h-12 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+        className="fixed left-3 top-20 z-40 flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 sm:left-4 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
         aria-label="Back"
       >
         <svg
-          className="w-6 h-6 text-gray-900"
+          className="w-5 h-5 sm:w-6 sm:h-6 text-gray-900"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -159,7 +159,7 @@ export default function SelectPhotosPage() {
       <button
         onClick={handleNext}
         disabled={selectedCount === 0}
-        className={`fixed right-4 top-20 z-40 flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all ${
+        className={`fixed right-3 top-20 z-40 flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 sm:right-4 rounded-full shadow-lg transition-all ${
           selectedCount === 0
             ? "bg-gray-300 cursor-not-allowed"
             : "bg-amber-700 hover:bg-amber-800"
@@ -167,7 +167,7 @@ export default function SelectPhotosPage() {
         aria-label="Next"
       >
         <svg
-          className="w-6 h-6 text-white"
+          className="w-5 h-5 sm:w-6 sm:h-6 text-white"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -192,7 +192,7 @@ export default function SelectPhotosPage() {
       />
 
       {/* Main Content - Extra padding on sides to avoid floating buttons */}
-      <main className="max-w-7xl mx-auto px-4 pt-28 pb-24 pl-20 pr-20">
+      <main className="max-w-7xl mx-auto px-4 pt-28 pb-24 pl-14 pr-14 sm:pl-20 sm:pr-20">
         {/* Error Message */}
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
