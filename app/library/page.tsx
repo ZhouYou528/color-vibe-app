@@ -30,6 +30,7 @@ export default function LibraryPage() {
   const router = useRouter();
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     // Wait for session to finish loading before checking authentication
@@ -65,6 +66,25 @@ export default function LibraryPage() {
 
   const handleCardClick = (cardId: string) => {
     router.push(`/card/${cardId}`);
+  };
+
+  const handleDeleteCard = async (e: React.MouseEvent, cardId: string) => {
+    e.stopPropagation();
+    if (deletingId) return;
+    setDeletingId(cardId);
+    try {
+      const response = await fetch(`/api/cards/${cardId}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete card");
+      }
+      setSavedCards((prev) => prev.filter((c) => c.id !== cardId));
+    } catch (err) {
+      console.error("Failed to delete card", err);
+      setDeletingId(null);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   // Show loading state while session is loading
@@ -154,8 +174,27 @@ export default function LibraryPage() {
               <div
                 key={card.id}
                 onClick={() => handleCardClick(card.id)}
-                className="bg-white border border-gray-200 rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow"
+                className="relative bg-white border border-gray-200 rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow"
               >
+                {/* Delete button - bottom right so it doesn't overlap images */}
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteCard(e, card.id)}
+                  disabled={deletingId === card.id}
+                  className="absolute bottom-3 right-3 p-1.5 rounded-full bg-white border border-gray-300 text-gray-900 shadow-sm hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed z-10"
+                  aria-label="Delete card"
+                >
+                  {deletingId === card.id ? (
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden>
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  )}
+                </button>
                 {/* Card Preview Images */}
                 {card.imageUrls && card.imageUrls.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-4">

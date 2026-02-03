@@ -1,11 +1,12 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { useHeaderVisibility } from "@/contexts/HeaderVisibilityContext";
 
 export default function AppHeader() {
+  const { data: session, status } = useSession();
   const { isAuthenticated, user, logout } = useAuth();
   const [avatarError, setAvatarError] = useState(false);
   const { isVisible } = useHeaderVisibility();
@@ -14,6 +15,9 @@ export default function AppHeader() {
   useEffect(() => {
     setAvatarError(false);
   }, [user?.picture]);
+
+  // Don't show Sign in button until session is resolved to avoid flash on refresh
+  const sessionReady = status !== "loading";
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 transition-transform duration-300 ease-in-out ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>
@@ -30,9 +34,11 @@ export default function AppHeader() {
             <h1 className="text-xl font-semibold text-gray-900">Color Vibe</h1>
           </div>
 
-          {/* Right: Login/User Menu */}
-          <div className="flex items-center gap-3">
-            {isAuthenticated ? (
+          {/* Right: Login/User Menu - show placeholder while session loads to prevent flash */}
+          <div className="flex items-center gap-3 min-w-[140px] justify-end">
+            {!sessionReady ? (
+              <div className="w-[140px] h-9 rounded-md bg-gray-100 animate-pulse" aria-hidden />
+            ) : isAuthenticated ? (
               <div className="flex items-center gap-3">
                 {user?.picture && !avatarError ? (
                   <img

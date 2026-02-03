@@ -9,6 +9,7 @@ import AppHeader from "@/components/AppHeader";
 import { extractPalette, combinePalettes, ColorInfo } from "@/lib/colorAnalysis";
 import { getInsights } from "@/lib/insights";
 import { InsightData } from "@/lib/mockInsights";
+import { blobUrlToDataUrl } from "@/lib/imageStorage";
 
 interface ImageFile {
   file: File;
@@ -27,9 +28,6 @@ function HomeContent() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasTriggeredAnalysis, setHasTriggeredAnalysis] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [showMessage, setShowMessage] = useState(true);
   const [cardDetails, setCardDetails] = useState<{
     title: string;
     lightTags: string[];
@@ -50,6 +48,14 @@ function HomeContent() {
       }
     }
   }, []);
+
+  // If user lands on / with a persisted result (e.g. refresh on /result), redirect to /result
+  useEffect(() => {
+    const generateParam = searchParams?.get("generate");
+    if (generateParam === "true") return;
+    const stored = sessionStorage.getItem("analysisResult");
+    if (stored) router.replace("/result");
+  }, [searchParams, router]);
 
   // Check if returning from card details (generate flow)
   useEffect(() => {
@@ -132,6 +138,37 @@ function HomeContent() {
           
           // Clear context after successful analysis
           setSelectedImages([]);
+          // Persist result with image previews (base64) and navigate to /result
+          const detailsToSave = cardDetailsStored ? JSON.parse(cardDetailsStored) : null;
+          if (detailsToSave) {
+            try {
+              const imagePreviews = await Promise.all(
+                imagesToAnalyze.map((img) => blobUrlToDataUrl(img.preview))
+              );
+              sessionStorage.setItem(
+                "analysisResult",
+                JSON.stringify({
+                  cardDetails: detailsToSave,
+                  combinedPalette: summary.colors,
+                  insights: insightData,
+                  imagePreviews,
+                })
+              );
+              router.push("/result");
+            } catch (e) {
+              console.error("Failed to persist image previews", e);
+              sessionStorage.setItem(
+                "analysisResult",
+                JSON.stringify({
+                  cardDetails: detailsToSave,
+                  combinedPalette: summary.colors,
+                  insights: insightData,
+                  imagePreviews: [],
+                })
+              );
+              router.push("/result");
+            }
+          }
         } catch (err) {
           setError(
             err instanceof Error ? err.message : "Failed to analyze images"
@@ -151,105 +188,14 @@ function HomeContent() {
   }, [searchParams, router, selectedImages, hasTriggeredAnalysis, setSelectedImages, cardDetails]);
 
 
-  const handleReset = () => {
-    // Clean up object URLs
-    images.forEach((img) => URL.revokeObjectURL(img.preview));
-    setImages([]);
-    setCombinedPalette([]);
-    setInsights(null);
-    setError(null);
-    setHasTriggeredAnalysis(false);
-    setCardDetails(null);
-    setSelectedImages([]);
-    setSaved(false);
-    sessionStorage.removeItem("cardDetails");
-    router.push("/");
-  };
-
-  const handleSaveCard = async () => {
-    if (!isAuthenticated || !cardDetails || !combinedPalette.length || !insights) {
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-
-    try {
-      // Import compression utility dynamically
-      const { compressImages } = await import("@/lib/compressImage");
-
-      // Compress all images
-      const imageFiles = images.map((img) => img.file);
-      const compressedBlobs = await compressImages(imageFiles, 400, 0.8);
-
-      // Create form data
-      const formData = new FormData();
-      
-      // Add payload as JSON string
-      const payload = {
-        title: cardDetails.title,
-        cardDetails: cardDetails,
-        palette: combinedPalette,
-        insights: insights,
-      };
-      formData.append("payload", JSON.stringify(payload));
-
-      // Add compressed images
-      compressedBlobs.forEach((blob, index) => {
-        formData.append(`preview_${index}`, blob, `preview_${index}.webp`);
-      });
-
-      // POST to API
-      const response = await fetch("/api/cards", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to save card");
-      }
-
-      const result = await response.json();
-      setSaved(true);
-      setShowMessage(true);
-    } catch (error) {
-      console.error("Failed to save card", error);
-      setError(error instanceof Error ? error.message : "Failed to save card. Please try again.");
-      setShowMessage(true);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Auto-hide success/error messages after 5 seconds
-  useEffect(() => {
-    if (saved || (error && (error.toLowerCase().includes("save") || error.toLowerCase().includes("failed to save")))) {
-      setShowMessage(true);
-      const timer = setTimeout(() => {
-        setShowMessage(false);
-        // Clear error after fade-out completes
-        setTimeout(() => {
-          if (error && (error.toLowerCase().includes("save") || error.toLowerCase().includes("failed to save"))) {
-            setError(null);
-          }
-        }, 500); // Wait for fade-out animation to complete
-      }, 5000);
-      return () => clearTimeout(timer);
-    } else {
-      setShowMessage(true);
-    }
-  }, [saved, error]);
-
-  // Determine current view state
+  // Determine current view state (result view is now on /result)
   const isLanding = images.length === 0 && !insights && !isAnalyzing && !hasTriggeredAnalysis;
-  const hasResults = insights !== null;
 
   return (
     <main className="min-h-screen bg-white">
       {/* Header */}
       <AppHeader />
-      <div className={`max-w-4xl mx-auto ${hasResults ? '' : 'px-4 sm:px-6 lg:px-8'} ${isAuthenticated && !saved ? 'pb-32' : 'pb-24'} ${hasResults ? '' : 'pt-28'}`}>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-24">
 
         {/* Landing View - Card Selection */}
         {isLanding && (
@@ -328,297 +274,7 @@ function HomeContent() {
           </div>
         )}
 
-        {/* Results Section - same layout as card detail page (/card/[id]) */}
-        {hasResults && insights && (
-          <div className="w-full px-10 sm:px-14 pt-28 pb-24">
-            {/* Floating Back Button */}
-            <button
-              onClick={handleReset}
-              className="fixed left-3 top-20 z-40 flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 sm:left-4 bg-white border border-gray-300 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
-              aria-label="Back"
-            >
-              <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 text-gray-900"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-
-            {/* Card Title */}
-            {cardDetails && (
-              <h2 className="text-3xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>
-                {cardDetails.title}
-              </h2>
-            )}
-
-            {/* Selected Pills */}
-            {cardDetails && (cardDetails.lightTags.length > 0 ||
-              cardDetails.moodTags.length > 0 ||
-              cardDetails.sceneTags.length > 0) && (
-              <div className="mb-6">
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {cardDetails.lightTags.map((tag) => (
-                    <span
-                      key={`light-${tag}`}
-                      className="px-4 py-2 bg-amber-700 text-white rounded-full text-sm font-medium capitalize"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {cardDetails.moodTags.map((tag) => (
-                    <span
-                      key={`mood-${tag}`}
-                      className="px-4 py-2 bg-amber-700 text-white rounded-full text-sm font-medium capitalize"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {cardDetails.sceneTags.map((tag) => (
-                    <span
-                      key={`scene-${tag}`}
-                      className="px-4 py-2 bg-amber-700 text-white rounded-full text-sm font-medium capitalize"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                {/* Notes */}
-                {cardDetails.notes && cardDetails.notes.trim() && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {cardDetails.notes}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-
-            {/* Horizontally Scrollable Image Previews */}
-            {images.length > 0 && (
-              <div className="mb-8">
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                  {images.map((img) => (
-                    <div
-                      key={img.id}
-                      className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
-                    >
-                      <img
-                        src={img.preview}
-                        alt={`Preview ${img.id}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* PALETTE Section */}
-            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-              <h2 className="text-2xl font-bold mb-6 uppercase text-gray-900">
-                PALETTE
-              </h2>
-
-              {/* Primary Colors */}
-              {combinedPalette.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-sm font-normal text-gray-600 uppercase mb-4">
-                    PRIMARY COLORS
-                  </h3>
-                  <div className="flex flex-wrap gap-4 mb-4">
-                    {combinedPalette.slice(0, 3).map((color, index) => {
-                      const percentage = Math.round(100 / Math.min(combinedPalette.length, 3));
-                      return (
-                        <div key={index} className="flex flex-col items-center">
-                          <div
-                            className="w-16 h-16 rounded border-2 border-gray-300 mb-2"
-                            style={{ backgroundColor: color.hex }}
-                          />
-                          <span className="text-xs font-mono text-gray-700">
-                            {color.hex}
-                          </span>
-                          <span className="text-xs text-gray-600 mt-1">
-                            {percentage}%
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Visual bar representation */}
-                  <div className="flex h-4 rounded overflow-hidden">
-                    {combinedPalette.slice(0, 3).map((color, index) => {
-                      const percentage = Math.round(100 / Math.min(combinedPalette.length, 3));
-                      return (
-                        <div
-                          key={index}
-                          className="h-full"
-                          style={{
-                            width: `${percentage}%`,
-                            backgroundColor: color.hex,
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Secondary Colors */}
-              {combinedPalette.length > 3 && (
-                <div className="mb-8">
-                  <h3 className="text-sm font-normal text-gray-600 uppercase mb-4">
-                    SECONDARY COLORS
-                  </h3>
-                  <div className="flex flex-wrap gap-4">
-                    {combinedPalette.slice(3).map((color, index) => (
-                      <div key={index} className="flex flex-col items-center">
-                        <div
-                          className="w-16 h-16 rounded border-2 border-gray-300 mb-2"
-                          style={{ backgroundColor: color.hex }}
-                        />
-                        <span className="text-xs font-mono text-gray-700">
-                          {color.hex}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Match Colors */}
-              {insights.colorsToUse.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-sm font-normal text-gray-600 uppercase mb-4">
-                    MATCH COLORS
-                  </h3>
-                  <div className="flex flex-wrap gap-4">
-                    {insights.colorsToUse.map((color, index) => (
-                      <div key={index} className="flex flex-col items-center">
-                        <div
-                          className="w-16 h-16 rounded border-2 border-gray-300 mb-2"
-                          style={{ backgroundColor: color.hex }}
-                        />
-                        <span className="text-xs font-mono text-gray-700">
-                          {color.hex}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Avoid Colors */}
-              {insights.colorsToAvoid.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-normal text-gray-600 uppercase mb-4">
-                    AVOID COLORS
-                  </h3>
-                  <div className="flex flex-wrap gap-4">
-                    {insights.colorsToAvoid.map((color, index) => (
-                      <div key={index} className="flex flex-col items-center">
-                        <div
-                          className="w-16 h-16 rounded border-2 border-gray-300 mb-2"
-                          style={{ backgroundColor: color.hex }}
-                        />
-                        <span className="text-xs font-mono text-gray-700">
-                          {color.hex}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
-
-      {/* Floating Action Button/Message (only if logged in and has results) */}
-      {isAuthenticated && hasResults && (
-        <div className="fixed bottom-16 left-0 right-0 z-40 flex justify-center px-4 pb-2">
-          {/* Success Message */}
-          {saved && (
-            <div className={`px-6 py-3 bg-green-50 text-green-700 rounded-lg font-medium flex items-center gap-2 border border-green-200 shadow-lg transition-opacity duration-500 ease-out ${showMessage ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span>Saved to Library</span>
-            </div>
-          )}
-          
-          {/* Error Message */}
-          {error && (error.toLowerCase().includes("save") || error.toLowerCase().includes("failed to save")) && (
-            <div className={`px-6 py-3 bg-red-50 text-red-700 rounded-lg font-medium flex items-center gap-2 border border-red-200 shadow-lg max-w-md transition-opacity duration-500 ease-out ${showMessage ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-              <svg
-                className="w-5 h-5 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-              <span className="text-sm">{error}</span>
-            </div>
-          )}
-          
-          {/* Save Button */}
-          {!saved && (!error || !error.toLowerCase().includes("save")) && (
-            <button
-              onClick={handleSaveCard}
-              disabled={isSaving}
-              className="px-4 py-2 text-sm sm:px-6 sm:py-3 sm:text-base bg-amber-700 text-white rounded-lg font-medium hover:bg-amber-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
-            >
-              {isSaving ? (
-                <>
-                  <div className="animate-spin rounded-full h-3.5 w-3.5 sm:h-4 sm:w-4 border-b-2 border-white"></div>
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="w-4 h-4 sm:w-5 sm:h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  <span>Save to Library</span>
-                </>
-              )}
-            </button>
-          )}
-        </div>
-      )}
     </main>
   );
 }
