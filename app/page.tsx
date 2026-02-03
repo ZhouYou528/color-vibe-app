@@ -171,28 +171,54 @@ function HomeContent() {
     }
 
     setIsSaving(true);
+    setError(null);
+
     try {
-      const savedCard = {
-        id: `card-${Date.now()}-${Math.random()}`,
+      // Import compression utility dynamically
+      const { compressImages } = await import("@/lib/compressImage");
+
+      // Compress all images
+      const imageFiles = images.map((img) => img.file);
+      const compressedBlobs = await compressImages(imageFiles, 400, 0.8);
+
+      // Create form data
+      const formData = new FormData();
+      
+      // Add payload as JSON string
+      const payload = {
         title: cardDetails.title,
-        createdAt: new Date().toISOString(),
+        cardDetails: cardDetails,
         palette: combinedPalette,
         insights: insights,
-        cardDetails: cardDetails,
-        imagePreviews: images.map((img) => img.preview),
       };
+      formData.append("payload", JSON.stringify(payload));
 
-      // Load existing cards
-      const existingCards = localStorage.getItem("saved_cards");
-      const cards = existingCards ? JSON.parse(existingCards) : [];
-      cards.push(savedCard);
+      // Add compressed images
+      compressedBlobs.forEach((blob, index) => {
+        formData.append(`preview_${index}`, blob, `preview_${index}.webp`);
+      });
 
-      // Save to localStorage
-      localStorage.setItem("saved_cards", JSON.stringify(cards));
+      // POST to API
+      const response = await fetch("/api/cards", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to save card");
+      }
+
+      const result = await response.json();
       setSaved(true);
+      
+      // Optionally redirect to library after a short delay
+      setTimeout(() => {
+        // Keep saved state visible, but don't auto-redirect
+      }, 2000);
     } catch (error) {
       console.error("Failed to save card", error);
-      setError("Failed to save card. Please try again.");
+      setError(error instanceof Error ? error.message : "Failed to save card. Please try again.");
     } finally {
       setIsSaving(false);
     }

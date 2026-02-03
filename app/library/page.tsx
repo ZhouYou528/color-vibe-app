@@ -20,7 +20,7 @@ interface SavedCard {
     sceneTags: string[];
     notes: string;
   };
-  imagePreviews: string[];
+  imageUrls: string[];
 }
 
 export default function LibraryPage() {
@@ -35,16 +35,18 @@ export default function LibraryPage() {
       return;
     }
 
-    // Load saved cards from localStorage
-    const loadCards = () => {
+    // Load saved cards from API
+    const loadCards = async () => {
       try {
-        const stored = localStorage.getItem("saved_cards");
-        if (stored) {
-          const cards = JSON.parse(stored);
-          setSavedCards(cards);
+        const response = await fetch("/api/cards");
+        if (!response.ok) {
+          throw new Error("Failed to fetch cards");
         }
+        const data = await response.json();
+        setSavedCards(data.cards || []);
       } catch (e) {
         console.error("Failed to load saved cards", e);
+        setSavedCards([]);
       } finally {
         setIsLoading(false);
       }
@@ -129,15 +131,15 @@ export default function LibraryPage() {
                 className="bg-white border border-gray-200 rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow"
               >
                 {/* Card Preview Images */}
-                {card.imagePreviews && card.imagePreviews.length > 0 && (
+                {card.imageUrls && card.imageUrls.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-4">
-                    {card.imagePreviews.slice(0, 3).map((preview, idx) => (
+                    {card.imageUrls.slice(0, 3).map((url, idx) => (
                       <div
                         key={idx}
                         className="aspect-square rounded overflow-hidden bg-gray-100"
                       >
                         <img
-                          src={preview}
+                          src={url}
                           alt={`Preview ${idx + 1}`}
                           className="w-full h-full object-cover"
                         />

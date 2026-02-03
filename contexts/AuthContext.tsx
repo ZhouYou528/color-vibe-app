@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useSession, signIn, signOut } from "next-auth/react";
 
 interface User {
   id: string;
@@ -19,158 +20,44 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { data: session, status } = useSession();
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Load user from localStorage on mount
+  // Sync next-auth session to user state
   useEffect(() => {
-    const storedUser = localStorage.getItem("auth_user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Failed to load user", e);
-        localStorage.removeItem("auth_user");
-      }
-    }
-    setIsLoading(false);
-  }, []);
+    if (status === "loading") return;
 
-  // Load Google Identity Services script
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Remove any existing Google script to ensure fresh load with language parameter
-      const existingScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
-      if (existingScript) {
-        existingScript.remove();
-      }
-      
-      if (!window.google) {
-        const script = document.createElement("script");
-        // Add hl=en parameter to force English language
-        script.src = "https://accounts.google.com/gsi/client?hl=en";
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-          initializeGoogleSignIn();
-        };
-        document.head.appendChild(script);
-      } else {
-        // If already loaded, reinitialize with English locale
-        initializeGoogleSignIn();
-      }
-    }
-
-    // Listen for credential responses from AppHeader if it initializes separately
-    const handleCredentialEvent = (event: CustomEvent) => {
-      handleCredentialResponse(event.detail);
-    };
-    window.addEventListener("google-credential-response" as any, handleCredentialEvent as EventListener);
-
-    return () => {
-      window.removeEventListener("google-credential-response" as any, handleCredentialEvent as EventListener);
-    };
-  }, []);
-
-  const initializeGoogleSignIn = () => {
-    if (typeof window === "undefined" || !window.google) return;
-
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      console.warn("NEXT_PUBLIC_GOOGLE_CLIENT_ID is not set. Google Sign-In will not work.");
-      return;
-    }
-
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: handleCredentialResponse,
-      locale: "en",
-    });
-  };
-
-  const handleCredentialResponse = (response: any) => {
-    // Decode JWT token (simplified - in production, verify on backend)
-    try {
-      const base64Url = response.credential.split(".")[1];
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split("")
-          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-          .join("")
-      );
-      const payload = JSON.parse(jsonPayload);
-
+    if (session?.user) {
       const userData: User = {
-        id: payload.sub,
-        name: payload.name,
-        email: payload.email,
-        picture: payload.picture,
+        id: (session.user as any).id || session.user.email || "",
+        name: session.user.name || "",
+        email: session.user.email || "",
+        picture: session.user.image || undefined,
       };
-
-      console.log("User signed in:", userData);
-      
-      // Update state immediately - this will trigger re-render and hide button
       setUser(userData);
+      // Also store in localStorage for backward compatibility
       localStorage.setItem("auth_user", JSON.stringify(userData));
-      
-      // Immediately clear Google sign-in buttons from DOM
-      if (typeof window !== "undefined") {
-        // Clear button containers immediately
-        const clearButtons = () => {
-          const containers = document.querySelectorAll('#google-signin-button');
-          containers.forEach(container => {
-            container.innerHTML = "";
-          });
-          
-          // Remove Google-created elements
-          document.querySelectorAll('[id^="gsi"], iframe[src*="accounts.google.com"]').forEach(el => {
-            if (el.parentElement) {
-              el.remove();
-            }
-          });
-        };
-        
-        clearButtons();
-        // Also clear after a brief delay to catch any async renders
-        setTimeout(clearButtons, 50);
-        
-        // Disable auto sign-in prompt
-        if (window.google) {
-          window.google.accounts.id.disableAutoSelect();
-        }
-      }
-    } catch (error) {
-      console.error("Failed to decode credential", error);
+    } else {
+      setUser(null);
+      localStorage.removeItem("auth_user");
     }
-  };
+  }, [session, status]);
 
   const login = () => {
-    // The login is handled by the Google Sign-In button rendered in AppHeader
-    if (typeof window === "undefined" || !window.google) {
-      console.error("Google Identity Services not loaded");
-      return;
-    }
-
-    // Trigger the One Tap prompt
-    window.google.accounts.id.prompt((notification: any) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        console.log("One Tap not available, using button");
-      }
-    });
+    // Use next-auth signIn with account selection prompt
+    signIn("google", undefined, { prompt: "select_account" });
   };
 
   const logout = () => {
+    signOut();
     setUser(null);
     localStorage.removeItem("auth_user");
-    if (typeof window !== "undefined" && window.google) {
-      window.google.accounts.id.disableAutoSelect();
-    }
   };
 
-  // Always provide the context, even during loading
+  const isAuthenticated = !!user && status !== "loading";
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -184,18 +71,3 @@ export function useAuth() {
   return context;
 }
 
-// Extend Window interface for TypeScript
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: { client_id: string; callback: (response: any) => void; locale?: string }) => void;
-          prompt: (callback: (notification: any) => void) => void;
-          renderButton: (element: HTMLElement, config: { theme?: string; size?: string; text?: string; width?: number; locale?: string }) => void;
-          disableAutoSelect: () => void;
-        };
-      };
-    };
-  }
-}

@@ -2,15 +2,18 @@
 
 import { PhotoProvider } from "@/contexts/PhotoContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SessionProvider } from "next-auth/react";
 import BottomNavigation from "@/components/BottomNavigation";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
-      <PhotoProvider>
-        {children}
-        <BottomNavigation />
-      </PhotoProvider>
-    </AuthProvider>
+    <SessionProvider>
+      <AuthProvider>
+        <PhotoProvider>
+          {children}
+          <BottomNavigation />
+        </PhotoProvider>
+      </AuthProvider>
+    </SessionProvider>
   );
 }
