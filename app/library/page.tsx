@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSession } from "next-auth/react";
 import AppHeader from "@/components/AppHeader";
 import { useRouter } from "next/navigation";
 import { ColorInfo } from "@/lib/colorAnalysis";
@@ -25,12 +26,19 @@ interface SavedCard {
 
 export default function LibraryPage() {
   const { isAuthenticated } = useAuth();
+  const { status: sessionStatus, data: session } = useSession();
   const router = useRouter();
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    // Wait for session to finish loading before checking authentication
+    if (sessionStatus === "loading") {
+      return;
+    }
+
+    // Only redirect if session is loaded and user is unauthenticated
+    if (sessionStatus === "unauthenticated" || !session) {
       router.push("/");
       return;
     }
@@ -53,13 +61,31 @@ export default function LibraryPage() {
     };
 
     loadCards();
-  }, [isAuthenticated, router]);
+  }, [sessionStatus, session, router]);
 
   const handleCardClick = (cardId: string) => {
     router.push(`/card/${cardId}`);
   };
 
-  if (!isAuthenticated) {
+  // Show loading state while session is loading
+  if (sessionStatus === "loading") {
+    return (
+      <main className="min-h-screen bg-white">
+        <AppHeader />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-12">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+              <p className="mt-4 text-sm text-gray-500">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Redirect if not authenticated (handled in useEffect, but also check here for safety)
+  if (sessionStatus === "unauthenticated" || !session) {
     return null;
   }
 

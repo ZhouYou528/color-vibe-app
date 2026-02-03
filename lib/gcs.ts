@@ -68,11 +68,6 @@ export async function uploadImage(
   });
 
   // Return public URL
-  // IMPORTANT: For this to work with public access prevention enabled,
-  // you need to set up IAM conditions to allow public read access.
-  // See: docs/GCS_PUBLIC_ACCESS_SOLUTION.md for instructions
-  // 
-  // Alternative: Get a service account key from your GCP admin to use signed URLs
   return `https://storage.googleapis.com/${bucketName}/${fileName}`;
 }
 

@@ -29,6 +29,7 @@ function HomeContent() {
   const [hasTriggeredAnalysis, setHasTriggeredAnalysis] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showMessage, setShowMessage] = useState(true);
   const [cardDetails, setCardDetails] = useState<{
     title: string;
     lightTags: string[];
@@ -211,18 +212,34 @@ function HomeContent() {
 
       const result = await response.json();
       setSaved(true);
-      
-      // Optionally redirect to library after a short delay
-      setTimeout(() => {
-        // Keep saved state visible, but don't auto-redirect
-      }, 2000);
+      setShowMessage(true);
     } catch (error) {
       console.error("Failed to save card", error);
       setError(error instanceof Error ? error.message : "Failed to save card. Please try again.");
+      setShowMessage(true);
     } finally {
       setIsSaving(false);
     }
   };
+
+  // Auto-hide success/error messages after 5 seconds
+  useEffect(() => {
+    if (saved || (error && (error.toLowerCase().includes("save") || error.toLowerCase().includes("failed to save")))) {
+      setShowMessage(true);
+      const timer = setTimeout(() => {
+        setShowMessage(false);
+        // Clear error after fade-out completes
+        setTimeout(() => {
+          if (error && (error.toLowerCase().includes("save") || error.toLowerCase().includes("failed to save"))) {
+            setError(null);
+          }
+        }, 500); // Wait for fade-out animation to complete
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowMessage(true);
+    }
+  }, [saved, error]);
 
   // Determine current view state
   const isLanding = images.length === 0 && !insights && !isAnalyzing && !hasTriggeredAnalysis;
@@ -232,7 +249,7 @@ function HomeContent() {
     <main className="min-h-screen bg-white">
       {/* Header */}
       <AppHeader />
-      <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 ${hasResults ? 'pt-16' : 'pt-28'}`}>
+      <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 ${isAuthenticated && !saved ? 'pb-32' : 'pb-24'} ${hasResults ? 'pt-16' : 'pt-28'}`}>
 
         {/* Landing View - Card Selection */}
         {isLanding && (
@@ -391,62 +408,6 @@ function HomeContent() {
               </div>
             )}
 
-            {/* Save Button (only if logged in) */}
-            {isAuthenticated && !saved && (
-              <div className="mb-6 flex justify-end">
-                <button
-                  onClick={handleSaveCard}
-                  disabled={isSaving}
-                  className="px-6 py-3 bg-amber-700 text-white rounded-lg font-medium hover:bg-amber-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      <span>Save to Library</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-
-            {/* Saved Indicator */}
-            {saved && (
-              <div className="mb-6 flex justify-end">
-                <div className="px-6 py-3 bg-green-50 text-green-700 rounded-lg font-medium flex items-center gap-2 border border-green-200">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  <span>Saved to Library</span>
-                </div>
-              </div>
-            )}
 
             {/* Horizontally Scrollable Image Previews */}
             {images.length > 0 && (
@@ -587,6 +548,84 @@ function HomeContent() {
           </div>
         )}
       </div>
+
+      {/* Floating Action Button/Message (only if logged in and has results) */}
+      {isAuthenticated && hasResults && (
+        <div className="fixed bottom-16 left-0 right-0 z-40 flex justify-center px-4 pb-2">
+          {/* Success Message */}
+          {saved && (
+            <div className={`px-6 py-3 bg-green-50 text-green-700 rounded-lg font-medium flex items-center gap-2 border border-green-200 shadow-lg transition-opacity duration-500 ease-out ${showMessage ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              <span>Saved to Library</span>
+            </div>
+          )}
+          
+          {/* Error Message */}
+          {error && (error.toLowerCase().includes("save") || error.toLowerCase().includes("failed to save")) && (
+            <div className={`px-6 py-3 bg-red-50 text-red-700 rounded-lg font-medium flex items-center gap-2 border border-red-200 shadow-lg max-w-md transition-opacity duration-500 ease-out ${showMessage ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+              <svg
+                className="w-5 h-5 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
+          
+          {/* Save Button */}
+          {!saved && (!error || !error.toLowerCase().includes("save")) && (
+            <button
+              onClick={handleSaveCard}
+              disabled={isSaving}
+              className="px-6 py-3 bg-amber-700 text-white rounded-lg font-medium hover:bg-amber-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
+            >
+              {isSaving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <span>Save to Library</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      )}
     </main>
   );
 }
