@@ -4,12 +4,12 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePhotoContext } from "@/contexts/PhotoContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useResultContext } from "@/contexts/ResultContext";
 import SourceOptionCard from "@/components/SourceOptionCard";
 import AppHeader from "@/components/AppHeader";
 import { extractPalette, combinePalettes, ColorInfo } from "@/lib/colorAnalysis";
 import { getInsights } from "@/lib/insights";
 import { InsightData } from "@/lib/mockInsights";
-import { blobUrlToDataUrl } from "@/lib/imageStorage";
 
 interface ImageFile {
   file: File;
@@ -21,6 +21,7 @@ function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { selectedImages, setSelectedImages } = usePhotoContext();
+  const { setResultImages } = useResultContext();
   const { isAuthenticated } = useAuth();
   const [images, setImages] = useState<ImageFile[]>([]);
   const [combinedPalette, setCombinedPalette] = useState<ColorInfo[]>([]);
@@ -138,34 +139,32 @@ function HomeContent() {
           
           // Clear context after successful analysis
           setSelectedImages([]);
-          // Persist result with image previews (base64) and navigate to /result
+          // Persist non-image result and navigate to /result. Images are kept in-memory only.
           const detailsToSave = cardDetailsStored ? JSON.parse(cardDetailsStored) : null;
           if (detailsToSave) {
             try {
-              const imagePreviews = await Promise.all(
-                imagesToAnalyze.map((img) => blobUrlToDataUrl(img.preview))
-              );
               sessionStorage.setItem(
                 "analysisResult",
                 JSON.stringify({
                   cardDetails: detailsToSave,
                   combinedPalette: summary.colors,
                   insights: insightData,
-                  imagePreviews,
                 })
               );
+              // Keep previews for this navigation only (will be lost on refresh)
+              setResultImages(imagesToAnalyze);
               router.push("/result");
             } catch (e) {
-              console.error("Failed to persist image previews", e);
+              console.error("Failed to persist analysis result", e);
               sessionStorage.setItem(
                 "analysisResult",
                 JSON.stringify({
                   cardDetails: detailsToSave,
                   combinedPalette: summary.colors,
                   insights: insightData,
-                  imagePreviews: [],
                 })
               );
+              setResultImages(imagesToAnalyze);
               router.push("/result");
             }
           }

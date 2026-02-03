@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useResultContext } from "@/contexts/ResultContext";
 import AppHeader from "@/components/AppHeader";
 import { ColorInfo } from "@/lib/colorAnalysis";
 import { InsightData } from "@/lib/mockInsights";
-import { dataUrlToFile } from "@/lib/imageStorage";
 
 const STORAGE_KEY = "analysisResult";
 
@@ -22,16 +22,15 @@ interface StoredResult {
   cardDetails: CardDetails;
   combinedPalette: ColorInfo[];
   insights: InsightData;
-  imagePreviews: string[];
 }
 
 export default function ResultPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const { resultImages, clearResultImages } = useResultContext();
   const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
   const [combinedPalette, setCombinedPalette] = useState<ColorInfo[]>([]);
   const [insights, setInsights] = useState<InsightData | null>(null);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +52,6 @@ export default function ResultPage() {
       setCardDetails(data.cardDetails);
       setCombinedPalette(data.combinedPalette);
       setInsights(data.insights);
-      setImagePreviews(Array.isArray(data.imagePreviews) ? data.imagePreviews : []);
     } catch (e) {
       console.error("Failed to load result", e);
       sessionStorage.removeItem(STORAGE_KEY);
@@ -66,13 +64,14 @@ export default function ResultPage() {
   const handleBack = () => {
     sessionStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem("cardDetails");
+    clearResultImages();
     router.push("/");
   };
 
   const handleSaveCard = async () => {
     if (!isAuthenticated || !cardDetails || !combinedPalette.length || !insights) return;
-    if (imagePreviews.length === 0) {
-      setError("No images to save. Go back and create a new card.");
+    if (resultImages.length === 0) {
+      setError("Images aren't available after refresh. Go back and generate again to save.");
       setShowMessage(true);
       return;
     }
@@ -82,9 +81,7 @@ export default function ResultPage() {
 
     try {
       const { compressImages } = await import("@/lib/compressImage");
-      const files = await Promise.all(
-        imagePreviews.map((dataUrl, i) => dataUrlToFile(dataUrl, `preview_${i}.webp`))
-      );
+      const files = resultImages.map((img) => img.file);
       const compressedBlobs = await compressImages(files, 400, 0.8);
 
       const formData = new FormData();
@@ -197,15 +194,15 @@ export default function ResultPage() {
           </div>
         )}
 
-        {imagePreviews.length > 0 && (
+        {resultImages.length > 0 && (
           <div className="mb-8">
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {imagePreviews.map((src, idx) => (
+              {resultImages.map((img, idx) => (
                 <div
-                  key={idx}
+                  key={img.id || idx}
                   className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
                 >
-                  <img src={src} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                  <img src={img.preview} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
                 </div>
               ))}
             </div>
@@ -310,7 +307,7 @@ export default function ResultPage() {
           {!saved && (!error || (!error.toLowerCase().includes("save") && !error.includes("No images"))) && (
             <button
               onClick={handleSaveCard}
-              disabled={isSaving || imagePreviews.length === 0}
+              disabled={isSaving || resultImages.length === 0}
               className="px-4 py-2 text-sm sm:px-6 sm:py-3 sm:text-base bg-amber-700 text-white rounded-lg font-medium hover:bg-amber-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
             >
               {isSaving ? (
