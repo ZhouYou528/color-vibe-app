@@ -41,8 +41,10 @@ export default function ResultPage() {
   const [error, setError] = useState<string | null>(null);
   const [showMessage, setShowMessage] = useState(true);
   const [ready, setReady] = useState(false);
+  const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
 
   useEffect(() => {
+    // Load data synchronously from sessionStorage to minimize loading state
     const stored = sessionStorage.getItem(STORAGE_KEY);
     if (!stored) {
       router.replace("/");
@@ -54,6 +56,7 @@ export default function ResultPage() {
         router.replace("/");
         return;
       }
+      // Set all state immediately
       setCardDetails(data.cardDetails);
       setCombinedPalette(data.combinedPalette);
       setInsights(data.insights);
@@ -61,14 +64,88 @@ export default function ResultPage() {
         setGeminiAnalysis(data.geminiAnalysis);
         setStyleKeywords(data.geminiAnalysis.styleKeywords || []);
       }
+      // Mark as ready immediately after setting state
+      setReady(true);
     } catch (e) {
       console.error("Failed to load result", e);
       sessionStorage.removeItem(STORAGE_KEY);
       router.replace("/");
-    } finally {
-      setReady(true);
     }
   }, [router]);
+
+  // Trigger Gemini AI analysis in background if not already present
+  useEffect(() => {
+    // Only analyze if we have palette data but no Gemini analysis yet, and we have images
+    if (
+      ready &&
+      !geminiAnalysis &&
+      combinedPalette.length > 0 &&
+      cardDetails &&
+      resultImages.length > 0 &&
+      !isAnalyzingAI
+    ) {
+      const analyzeWithGemini = async () => {
+        setIsAnalyzingAI(true);
+        try {
+          // Compress images for Gemini
+          const { compressImages } = await import("@/lib/compressImage");
+          const imageFiles = resultImages.map((img) => img.file);
+          const compressedBlobs = await compressImages(imageFiles, 400, 0.8);
+
+          // Create FormData for Gemini API
+          const formData = new FormData();
+          formData.append(
+            "payload",
+            JSON.stringify({
+              palette: combinedPalette,
+              cardDetails: cardDetails,
+            })
+          );
+
+          // Add compressed images
+          compressedBlobs.forEach((blob, index) => {
+            formData.append(`preview_${index}`, blob, `preview_${index}.webp`);
+          });
+
+          // Call Gemini API
+          const geminiResponse = await fetch("/api/analyze-gemini", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (geminiResponse.ok) {
+            const geminiData = await geminiResponse.json();
+            const analysis = geminiData.geminiAnalysis || null;
+            if (analysis) {
+              setGeminiAnalysis(analysis);
+              setStyleKeywords(analysis.styleKeywords || []);
+              
+              // Update sessionStorage with Gemini analysis
+              const stored = sessionStorage.getItem(STORAGE_KEY);
+              if (stored) {
+                try {
+                  const data: StoredResult = JSON.parse(stored);
+                  const updated = { ...data, geminiAnalysis: analysis };
+                  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+                } catch (e) {
+                  console.error("Failed to update sessionStorage with Gemini analysis", e);
+                }
+              }
+            }
+          } else {
+            const errorData = await geminiResponse.json().catch(() => ({}));
+            console.warn("Gemini analysis failed:", errorData.error || "Unknown error");
+          }
+        } catch (geminiError) {
+          console.error("Failed to call Gemini API:", geminiError);
+        } finally {
+          setIsAnalyzingAI(false);
+        }
+      };
+
+      analyzeWithGemini();
+    }
+  }, [ready, geminiAnalysis, combinedPalette, cardDetails, resultImages, isAnalyzingAI]);
 
   const handleBack = () => {
     sessionStorage.removeItem(STORAGE_KEY);
@@ -298,6 +375,16 @@ export default function ResultPage() {
           )}
         </div>
 
+        {/* AI Analysis Loading Spinner - Show while analyzing */}
+        {isAnalyzingAI && !geminiAnalysis && (
+          <div className="mt-6 flex items-center justify-center py-4">
+            <div className="flex flex-col items-center gap-2">
+              <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400"></div>
+              <p className="text-xs text-gray-500">Analyzing with AI...</p>
+            </div>
+          </div>
+        )}
+
         {/* Gemini AI Analysis Sections */}
         {geminiAnalysis ? (
           <>
@@ -380,11 +467,11 @@ export default function ResultPage() {
               </div>
             </div>
           </>
-        ) : (
+        ) : !isAnalyzingAI ? (
           <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
             <p className="text-sm text-gray-500 italic">AI analysis unavailable. Try generating again later.</p>
           </div>
-        )}
+        ) : null}
       </div>
 
       {isAuthenticated && (
@@ -412,13 +499,18 @@ export default function ResultPage() {
           {!saved && (!error || (!error.toLowerCase().includes("save") && !error.includes("No images"))) && (
             <button
               onClick={handleSaveCard}
-              disabled={isSaving || resultImages.length === 0}
+              disabled={isSaving || resultImages.length === 0 || isAnalyzingAI}
               className="px-4 py-2 text-sm sm:px-6 sm:py-3 sm:text-base bg-amber-700 text-white rounded-lg font-medium hover:bg-amber-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
             >
               {isSaving ? (
                 <>
                   <div className="animate-spin rounded-full h-3.5 w-3.5 sm:h-4 sm:w-4 border-b-2 border-white" />
                   <span>Saving...</span>
+                </>
+              ) : isAnalyzingAI ? (
+                <>
+                  <div className="animate-spin rounded-full h-3.5 w-3.5 sm:h-4 sm:w-4 border-b-2 border-white" />
+                  <span>Analyzing...</span>
                 </>
               ) : (
                 <>

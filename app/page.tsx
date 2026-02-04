@@ -10,7 +10,6 @@ import AppHeader from "@/components/AppHeader";
 import { extractPalette, combinePalettes, ColorInfo } from "@/lib/colorAnalysis";
 import { getInsights } from "@/lib/insights";
 import { InsightData } from "@/lib/mockInsights";
-import { GeminiAnalysis } from "@/lib/geminiTypes";
 
 interface ImageFile {
   file: File;
@@ -28,7 +27,6 @@ function HomeContent() {
   const [combinedPalette, setCombinedPalette] = useState<ColorInfo[]>([]);
   const [insights, setInsights] = useState<InsightData | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasTriggeredAnalysis, setHasTriggeredAnalysis] = useState(false);
   const [cardDetails, setCardDetails] = useState<{
@@ -141,69 +139,27 @@ function HomeContent() {
           
           // Clear context after successful analysis
           setSelectedImages([]);
-          // Persist non-image result and navigate to /result. Images are kept in-memory only.
+          // Stop showing loading spinner before navigation
+          setIsAnalyzing(false);
+          
+          // Persist non-image result and navigate to /result immediately.
+          // Gemini AI analysis will happen on result page in background.
           const detailsToSave = cardDetailsStored ? JSON.parse(cardDetailsStored) : null;
           if (detailsToSave) {
-            // Call Gemini AI analysis
-            setIsAnalyzingAI(true);
-            let geminiAnalysis: GeminiAnalysis | null = null;
-            
             try {
-              // Compress images for Gemini
-              const { compressImages } = await import("@/lib/compressImage");
-              const imageFiles = imagesToAnalyze.map((img) => img.file);
-              const compressedBlobs = await compressImages(imageFiles, 400, 0.8);
-
-              // Create FormData for Gemini API
-              const formData = new FormData();
-              formData.append(
-                "payload",
-                JSON.stringify({
-                  palette: summary.colors,
-                  cardDetails: detailsToSave,
-                })
-              );
-
-              // Add compressed images
-              compressedBlobs.forEach((blob, index) => {
-                formData.append(`preview_${index}`, blob, `preview_${index}.webp`);
-              });
-
-              // Call Gemini API
-              const geminiResponse = await fetch("/api/analyze-gemini", {
-                method: "POST",
-                body: formData,
-              });
-
-              if (geminiResponse.ok) {
-                const geminiData = await geminiResponse.json();
-                geminiAnalysis = geminiData.geminiAnalysis || null;
-              } else {
-                const errorData = await geminiResponse.json().catch(() => ({}));
-                console.warn("Gemini analysis failed:", errorData.error || "Unknown error");
-                // Continue without Gemini analysis
-                geminiAnalysis = null;
-              }
-            } catch (geminiError) {
-              console.error("Failed to call Gemini API:", geminiError);
-              // Continue without Gemini analysis
-              geminiAnalysis = null;
-            } finally {
-              setIsAnalyzingAI(false);
-            }
-
-            try {
+              // Save result WITHOUT geminiAnalysis - it will be added later on result page
               sessionStorage.setItem(
                 "analysisResult",
                 JSON.stringify({
                   cardDetails: detailsToSave,
                   combinedPalette: summary.colors,
                   insights: insightData,
-                  geminiAnalysis,
+                  // geminiAnalysis will be added later on result page
                 })
               );
               // Keep previews for this navigation only (will be lost on refresh)
               setResultImages(imagesToAnalyze);
+              // Navigate immediately - result page will handle Gemini analysis
               router.push("/result");
             } catch (e) {
               console.error("Failed to persist analysis result", e);
@@ -213,7 +169,6 @@ function HomeContent() {
                   cardDetails: detailsToSave,
                   combinedPalette: summary.colors,
                   insights: insightData,
-                  geminiAnalysis,
                 })
               );
               setResultImages(imagesToAnalyze);
@@ -224,8 +179,6 @@ function HomeContent() {
           setError(
             err instanceof Error ? err.message : "Failed to analyze images"
           );
-          setIsAnalyzing(false);
-        } finally {
           setIsAnalyzing(false);
         }
       };
@@ -309,11 +262,11 @@ function HomeContent() {
 
 
         {/* Loading State */}
-        {(isAnalyzing || isAnalyzingAI) && (
+        {isAnalyzing && (
           <div className="max-w-3xl mx-auto text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             <p className="mt-4 text-gray-600">
-              {isAnalyzingAI ? "Analyzing with AI..." : "Analyzing your images..."}
+              Analyzing your images...
             </p>
           </div>
         )}
