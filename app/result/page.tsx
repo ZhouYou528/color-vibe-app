@@ -7,6 +7,7 @@ import { useResultContext } from "@/contexts/ResultContext";
 import AppHeader from "@/components/AppHeader";
 import { ColorInfo } from "@/lib/colorAnalysis";
 import { InsightData } from "@/lib/mockInsights";
+import { GeminiAnalysis } from "@/lib/geminiTypes";
 
 const STORAGE_KEY = "analysisResult";
 
@@ -22,6 +23,7 @@ interface StoredResult {
   cardDetails: CardDetails;
   combinedPalette: ColorInfo[];
   insights: InsightData;
+  geminiAnalysis?: GeminiAnalysis;
 }
 
 export default function ResultPage() {
@@ -31,6 +33,9 @@ export default function ResultPage() {
   const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
   const [combinedPalette, setCombinedPalette] = useState<ColorInfo[]>([]);
   const [insights, setInsights] = useState<InsightData | null>(null);
+  const [geminiAnalysis, setGeminiAnalysis] = useState<GeminiAnalysis | null>(null);
+  const [styleKeywords, setStyleKeywords] = useState<string[]>([]);
+  const [newKeyword, setNewKeyword] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +57,10 @@ export default function ResultPage() {
       setCardDetails(data.cardDetails);
       setCombinedPalette(data.combinedPalette);
       setInsights(data.insights);
+      if (data.geminiAnalysis) {
+        setGeminiAnalysis(data.geminiAnalysis);
+        setStyleKeywords(data.geminiAnalysis.styleKeywords || []);
+      }
     } catch (e) {
       console.error("Failed to load result", e);
       sessionStorage.removeItem(STORAGE_KEY);
@@ -85,12 +94,20 @@ export default function ResultPage() {
       const compressedBlobs = await compressImages(files, 400, 0.8);
 
       const formData = new FormData();
-      const payload = {
+      const payload: any = {
         title: cardDetails.title,
         cardDetails: cardDetails,
         palette: combinedPalette,
         insights: insights,
       };
+      
+      // Include Gemini analysis if available (with edited style keywords)
+      if (geminiAnalysis) {
+        payload.geminiAnalysis = {
+          ...geminiAnalysis,
+          styleKeywords: styleKeywords,
+        };
+      }
       formData.append("payload", JSON.stringify(payload));
       compressedBlobs.forEach((blob, index) => {
         formData.append(`preview_${index}`, blob, `preview_${index}.webp`);
@@ -280,6 +297,94 @@ export default function ResultPage() {
             </div>
           )}
         </div>
+
+        {/* Gemini AI Analysis Sections */}
+        {geminiAnalysis ? (
+          <>
+            {/* Color Language */}
+            {geminiAnalysis.colorLanguage && (
+              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+                <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">COLOR LANGUAGE</h2>
+                <p className="text-sm text-gray-700 leading-relaxed">{geminiAnalysis.colorLanguage}</p>
+              </div>
+            )}
+
+            {/* Composition & Lighting */}
+            {geminiAnalysis.compositionLighting && (
+              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+                <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">COMPOSITION & LIGHTING</h2>
+                <p className="text-sm text-gray-700 leading-relaxed">{geminiAnalysis.compositionLighting}</p>
+              </div>
+            )}
+
+            {/* Wardrobe Suggestions */}
+            {geminiAnalysis.wardrobeSuggestions && (
+              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+                <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">WARDROBE SUGGESTIONS</h2>
+                <p className="text-sm text-gray-700 leading-relaxed">{geminiAnalysis.wardrobeSuggestions}</p>
+              </div>
+            )}
+
+            {/* Style Keywords - Editable */}
+            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+              <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">STYLE KEYWORDS</h2>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {styleKeywords.map((keyword, idx) => (
+                  <span
+                    key={idx}
+                    className="px-4 py-2 bg-white border border-gray-300 rounded-full text-sm font-medium text-gray-700 flex items-center gap-2"
+                  >
+                    {keyword}
+                    <button
+                      type="button"
+                      onClick={() => setStyleKeywords(styleKeywords.filter((_, i) => i !== idx))}
+                      className="text-gray-400 hover:text-gray-600"
+                      aria-label={`Remove ${keyword}`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newKeyword}
+                  onChange={(e) => setNewKeyword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newKeyword.trim()) {
+                      e.preventDefault();
+                      if (!styleKeywords.includes(newKeyword.trim())) {
+                        setStyleKeywords([...styleKeywords, newKeyword.trim()]);
+                      }
+                      setNewKeyword("");
+                    }
+                  }}
+                  placeholder="Add keyword..."
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newKeyword.trim() && !styleKeywords.includes(newKeyword.trim())) {
+                      setStyleKeywords([...styleKeywords, newKeyword.trim()]);
+                      setNewKeyword("");
+                    }
+                  }}
+                  className="px-4 py-2 bg-amber-700 text-white rounded-lg text-sm font-medium hover:bg-amber-800 transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+            <p className="text-sm text-gray-500 italic">AI analysis unavailable. Try generating again later.</p>
+          </div>
+        )}
       </div>
 
       {isAuthenticated && (

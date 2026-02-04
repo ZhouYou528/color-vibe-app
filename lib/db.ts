@@ -2,6 +2,7 @@ import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { ColorInfo } from "./colorAnalysis";
 import { InsightData } from "./mockInsights";
+import { GeminiAnalysis } from "./geminiTypes";
 
 // Initialize Firebase Admin
 if (!getApps().length) {
@@ -73,6 +74,7 @@ export interface Card {
   palette: ColorInfo[];
   insights: InsightData;
   imageUrls: string[];
+  geminiAnalysis?: GeminiAnalysis; // Optional AI analysis from Gemini
 }
 
 export async function createCard(
@@ -83,12 +85,13 @@ export async function createCard(
     palette: ColorInfo[];
     insights: InsightData;
     imageUrls: string[];
+    geminiAnalysis?: GeminiAnalysis;
   }
 ): Promise<string> {
   const cardRef = db.collection("cards").doc();
   const cardId = cardRef.id;
 
-  await cardRef.set({
+  const cardData: any = {
     userId,
     title: data.title,
     createdAt: Timestamp.now(),
@@ -96,7 +99,14 @@ export async function createCard(
     palette: data.palette,
     insights: data.insights,
     imageUrls: data.imageUrls,
-  });
+  };
+
+  // Only include geminiAnalysis if provided
+  if (data.geminiAnalysis) {
+    cardData.geminiAnalysis = data.geminiAnalysis;
+  }
+
+  await cardRef.set(cardData);
 
   return cardId;
 }

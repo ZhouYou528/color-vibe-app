@@ -4,6 +4,7 @@ import { uploadImage } from "@/lib/gcs";
 import { createCard, createOrUpdateUser, getUserCards } from "@/lib/db";
 import { ColorInfo } from "@/lib/colorAnalysis";
 import { InsightData } from "@/lib/mockInsights";
+import { GeminiAnalysis } from "@/lib/geminiTypes";
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = JSON.parse(payloadStr);
-    const { title, cardDetails, palette, insights } = payload;
+    const { title, cardDetails, palette, insights, geminiAnalysis } = payload;
 
     // Get image files
     const imageFiles: File[] = [];
@@ -99,13 +100,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Create card in database
-    const createdCardId = await createCard(userId, {
+    const cardData: any = {
       title,
       cardDetails,
       palette: palette as ColorInfo[],
       insights: insights as InsightData,
       imageUrls,
-    });
+    };
+    
+    // Include Gemini analysis if provided
+    if (geminiAnalysis) {
+      cardData.geminiAnalysis = geminiAnalysis as GeminiAnalysis;
+    }
+    
+    const createdCardId = await createCard(userId, cardData);
 
     return NextResponse.json(
       { id: createdCardId, title, imageUrls },

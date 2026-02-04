@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AppHeader from "@/components/AppHeader";
 import { ColorInfo } from "@/lib/colorAnalysis";
 import { InsightData } from "@/lib/mockInsights";
+import { GeminiAnalysis } from "@/lib/geminiTypes";
 
 interface CardDetails {
   title: string;
@@ -24,6 +25,7 @@ interface Card {
   palette: ColorInfo[];
   insights: InsightData;
   imageUrls: string[];
+  geminiAnalysis?: GeminiAnalysis;
 }
 
 export default function CardDetailPage() {
@@ -125,7 +127,7 @@ export default function CardDetailPage() {
     );
   }
 
-  const { title, cardDetails, palette, insights, imageUrls } = card;
+  const { title, cardDetails, palette, insights, imageUrls, geminiAnalysis } = card;
 
   return (
     <main className="min-h-screen bg-white">
@@ -356,6 +358,52 @@ export default function CardDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Gemini AI Analysis Sections - Read-only for saved cards */}
+        {geminiAnalysis && (
+          <>
+            {/* Color Language */}
+            {geminiAnalysis.colorLanguage && (
+              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+                <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">COLOR LANGUAGE</h2>
+                <p className="text-sm text-gray-700 leading-relaxed">{geminiAnalysis.colorLanguage}</p>
+              </div>
+            )}
+
+            {/* Composition & Lighting */}
+            {geminiAnalysis.compositionLighting && (
+              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+                <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">COMPOSITION & LIGHTING</h2>
+                <p className="text-sm text-gray-700 leading-relaxed">{geminiAnalysis.compositionLighting}</p>
+              </div>
+            )}
+
+            {/* Wardrobe Suggestions */}
+            {geminiAnalysis.wardrobeSuggestions && (
+              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+                <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">WARDROBE SUGGESTIONS</h2>
+                <p className="text-sm text-gray-700 leading-relaxed">{geminiAnalysis.wardrobeSuggestions}</p>
+              </div>
+            )}
+
+            {/* Style Keywords - Read-only */}
+            {geminiAnalysis.styleKeywords && geminiAnalysis.styleKeywords.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+                <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">STYLE KEYWORDS</h2>
+                <div className="flex flex-wrap gap-2">
+                  {geminiAnalysis.styleKeywords.map((keyword, idx) => (
+                    <span
+                      key={idx}
+                      className="px-4 py-2 bg-white border border-gray-300 rounded-full text-sm font-medium text-gray-700"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </main>
   );

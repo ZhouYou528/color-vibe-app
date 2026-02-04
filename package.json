@@ -11,6 +11,7 @@
   "dependencies": {
     "@auth/core": "^0.41.0",
     "@google-cloud/storage": "^7.18.0",
+    "@google/generative-ai": "^0.24.1",
     "@opentelemetry/api": "^1.9.0",
     "colorthief": "^2.6.0",
     "firebase-admin": "^13.6.0",
