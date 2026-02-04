@@ -19,6 +19,37 @@ interface CardDetails {
   notes: string;
 }
 
+// Helper function to format bullet point text into list items
+const formatBulletPoints = (text: string): string[] => {
+  if (!text) return [];
+  
+  // Handle escaped newlines in JSON
+  const normalizedText = text.replace(/\\n/g, '\n');
+  
+  // Split by newlines and filter empty lines
+  const lines = normalizedText
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+  
+  // If we have lines starting with '- ', use those
+  const bulletLines = lines.filter(line => line.startsWith('- '));
+  if (bulletLines.length > 0) {
+    return bulletLines.map(line => line.replace(/^-\s*/, ''));
+  }
+  
+  // Fallback: if text contains '- ' but not on separate lines, try to split by '- '
+  if (text.includes('- ')) {
+    const parts = text.split(/- /).filter(part => part.trim().length > 0);
+    if (parts.length > 1) {
+      return parts.map(part => part.trim());
+    }
+  }
+  
+  // If no bullet format detected, return the whole text as a single item
+  return [text];
+};
+
 interface StoredResult {
   cardDetails: CardDetails;
   combinedPalette: ColorInfo[];
@@ -392,7 +423,11 @@ export default function ResultPage() {
             {geminiAnalysis.colorLanguage && (
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
                 <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">COLOR LANGUAGE</h2>
-                <p className="text-sm text-gray-700 leading-relaxed">{geminiAnalysis.colorLanguage}</p>
+                <ul className="text-sm text-gray-700 leading-relaxed space-y-2 list-disc pl-6 marker:text-gray-700">
+                  {formatBulletPoints(geminiAnalysis.colorLanguage).map((item, idx) => (
+                    <li key={idx} className="pl-2">{item}</li>
+                  ))}
+                </ul>
               </div>
             )}
 
@@ -400,7 +435,11 @@ export default function ResultPage() {
             {geminiAnalysis.compositionLighting && (
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
                 <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">COMPOSITION & LIGHTING</h2>
-                <p className="text-sm text-gray-700 leading-relaxed">{geminiAnalysis.compositionLighting}</p>
+                <ul className="text-sm text-gray-700 leading-relaxed space-y-2 list-disc pl-6 marker:text-gray-700">
+                  {formatBulletPoints(geminiAnalysis.compositionLighting).map((item, idx) => (
+                    <li key={idx} className="pl-2">{item}</li>
+                  ))}
+                </ul>
               </div>
             )}
 
@@ -408,7 +447,11 @@ export default function ResultPage() {
             {geminiAnalysis.wardrobeSuggestions && (
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
                 <h2 className="text-2xl font-bold mb-4 uppercase text-gray-900">WARDROBE SUGGESTIONS</h2>
-                <p className="text-sm text-gray-700 leading-relaxed">{geminiAnalysis.wardrobeSuggestions}</p>
+                <ul className="text-sm text-gray-700 leading-relaxed space-y-2 list-disc pl-6 marker:text-gray-700">
+                  {formatBulletPoints(geminiAnalysis.wardrobeSuggestions).map((item, idx) => (
+                    <li key={idx} className="pl-2">{item}</li>
+                  ))}
+                </ul>
               </div>
             )}
 

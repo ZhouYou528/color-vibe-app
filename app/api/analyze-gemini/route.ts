@@ -97,13 +97,15 @@ ${tagsText}
 Analyze the images and provide insights in the following JSON format. Respond ONLY with valid JSON, no markdown, no code blocks:
 
 {
-  "colorLanguage": "Aesthetic description of the color story in designer language (e.g., 'soft blush and champagne tones create an ethereal, romantic atmosphere'). Avoid RGB values.",
-  "compositionLighting": "Guidance on composition and lighting logic: warm/cool ratio, brightness range, contrast tendency. Provide guidance, not rigid rules (e.g., 'Warm golden hour lighting dominates with 70% warm tones, creating soft shadows and gentle contrast').",
-  "wardrobeSuggestions": "Wardrobe recommendations in designer/client language (e.g., 'Cream tones, cool white, wheat, soft blush'). Use terms that designers and clients understand.",
+  "colorLanguage": "Aesthetic description of the color story in designer language, formatted as bullet points (one per line, each starting with '- '). Avoid RGB values. Example format:\n- Soft blush and champagne tones\n- Ethereal, romantic atmosphere\n- Delicate pastel harmony",
+  "compositionLighting": "Guidance on composition and lighting logic formatted as bullet points (one per line, each starting with '- '). Include warm/cool ratio, brightness range, contrast tendency. Provide guidance, not rigid rules. Example format:\n- Warm golden hour lighting dominates\n- 70% warm tones with soft shadows\n- Gentle contrast throughout",
+  "wardrobeSuggestions": "Wardrobe recommendations in designer/client language, formatted as bullet points (one per line, each starting with '- '). Use terms that designers and clients understand. Example format:\n- Cream tones and cool white\n- Wheat and soft blush accents\n- Elegant neutral palette",
   "styleKeywords": ["clean skin tone", "moody", "high contrast", "airy", "romantic", "editorial"]
 }
 
-Important: Return ONLY the JSON object, no other text.`;
+Important: 
+- For colorLanguage, compositionLighting, and wardrobeSuggestions: Format as bullet points with each point on a new line starting with '- '
+- Return ONLY the JSON object, no other text.`;
 
     // Initialize Gemini - using gemini-2.5-flash only (free tier)
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
